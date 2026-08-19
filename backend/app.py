@@ -1,6 +1,9 @@
 from flask import Flask, request, jsonify
 from services.fortyguard import submit_heatmap, get_heatmap_result
 from logic.risk_engine import calculate_risk
+from logic.priority_engine import calculate_priority
+from logic.action_engine import generate_actions
+
 
 app = Flask(__name__)
 
@@ -36,6 +39,15 @@ def analyze():
 
         risk = calculate_risk(temperature_stats)
 
+        priority_groups = calculate_priority(
+            risk["level"]
+        )
+
+        actions = generate_actions(
+            priority_groups,
+            risk["level"]
+        )
+
         print("\n========== RESULT KEYS ==========")
         print(result.keys())
 
@@ -47,6 +59,8 @@ def analyze():
             "success": True,
             "activity_id": activity_id,
             "risk": risk,
+            "priority_groups": priority_groups,
+            "actions": actions,
             "temperature_stats": temperature_stats
         })
 
@@ -62,3 +76,5 @@ def analyze():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+
