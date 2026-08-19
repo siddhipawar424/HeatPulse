@@ -1,5 +1,10 @@
 from flask import Flask, request, jsonify
-from services.fortyguard import submit_heatmap, get_heatmap_result
+from services.fortyguard import (
+    submit_heatmap,
+    get_heatmap_result,
+    submit_env_params,
+    get_env_params_result
+)
 from logic.risk_engine import calculate_risk
 from logic.priority_engine import calculate_priority
 from logic.action_engine import generate_actions
@@ -7,6 +12,32 @@ from logic.guideline_retriever import retrieve_relevant_guidelines
 from logic.agent_planner import generate_agentic_plan
 
 app = Flask(__name__)
+
+
+def _compute_polygon_centroid(polygon):
+    """
+    Computes the bounding-box centroid (average of min/max lat & lon) from a
+    GeoJSON FeatureCollection polygon. This is exact for rectangular AOIs.
+
+    :param polygon: GeoJSON FeatureCollection dict
+    :returns: (lat: float, lon: float) tuple
+    """
+    all_coords = []
+    for feature in polygon.get("features", []):
+        geometry = feature.get("geometry", {})
+        for ring in geometry.get("coordinates", []):
+            all_coords.extend(ring)
+
+    if not all_coords:
+        raise ValueError("Polygon contains no coordinates — cannot compute centroid")
+
+    lons = [c[0] for c in all_coords]
+    lats = [c[1] for c in all_coords]
+
+    centroid_lat = (min(lats) + max(lats)) / 2.0
+    centroid_lon = (min(lons) + max(lons)) / 2.0
+
+    return centroid_lat, centroid_lon
 
 
 @app.route("/")
@@ -37,16 +68,33 @@ def analyze():
 
         temperature_stats = result["stats_data"]["temperature_stats"]
 
-        # 2. Deterministic Risk Baseline (Hard Safety Guardrail)
+        # 2. FortyGuard Environmental Parameters (non-blocking — fail-safe)
+        env_params = None
+        try:
+            centroid_lat, centroid_lon = _compute_polygon_centroid(polygon)
+            env_activity_id = submit_env_params(
+                centroid_lat,
+                centroid_lon,
+                temperature_stats["mean"],
+                date,
+                start_time
+            )
+            env_params = get_env_params_result(env_activity_id)
+            print(f"\n[SUCCESS] env_params enrichment fetched (heat_index={env_params.get('heat_index_celsius')}°C, rh={env_params.get('relative_humidity_percent')}%)")
+        except Exception as env_err:
+            print(f"\n[WARNING] env_params enrichment unavailable — continuing without it: {repr(env_err)}")
+            env_params = None
+
+        # 3. Deterministic Risk Baseline (Hard Safety Guardrail)
         risk = calculate_risk(temperature_stats)
 
-        # 3. Priority Engine Group Vulnerability Assignment
+        # 4. Priority Engine Group Vulnerability Assignment
         priority_groups = calculate_priority(risk["level"])
 
-        # 4. Retrieve Relevant OSHA / WHO / NIOSH Safety Guidelines
+        # 5. Retrieve Relevant OSHA / WHO / NIOSH Safety Guidelines
         guidelines = retrieve_relevant_guidelines(risk["level"], priority_groups)
 
-        # 5. Agentic Action Planner (with safe deterministic fallback)
+        # 6. Agentic Action Planner (with safe deterministic fallback)
         agent_metadata = {
             "agent_executed": False,
             "reasoning_summary": None,
@@ -61,7 +109,8 @@ def analyze():
                 priority_groups,
                 date,
                 start_time,
-                guidelines
+                guidelines,
+                env_params=env_params
             )
             actions = agent_plan["actions"]
             agent_metadata = {
@@ -85,7 +134,8 @@ def analyze():
             "actions": actions,
             "temperature_stats": temperature_stats,
             "agent_metadata": agent_metadata,
-            "guidelines": guidelines
+            "guidelines": guidelines,
+            "env_params": env_params
         })
 
     except Exception as e:
@@ -98,3 +148,4 @@ def analyze():
 
 if __name__ == "__main__":
     app.run(debug=True)
+

@@ -33,7 +33,7 @@ export function DateTimeSelector({ date, setDate, time, setTime, onAnalyze, isLo
         <div>
           <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-orange-400" />
-            Time (Peak Heat Window)
+            Analysis Hour
           </label>
           <input
             type="time"

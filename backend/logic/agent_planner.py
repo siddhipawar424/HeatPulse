@@ -14,7 +14,7 @@ except ImportError:
     GENAI_AVAILABLE = False
 
 
-def _call_gemini_api(temperature_stats, risk, priority_groups, date, time, guidelines, api_key):
+def _call_gemini_api(temperature_stats, risk, priority_groups, date, time, guidelines, api_key, env_params=None):
     """
     Internal synchronous call to Gemini API using google-genai SDK with 12s HTTP timeout.
     """
@@ -33,6 +33,21 @@ STRICT SAFETY CONSTRAINTS:
 4. Output MUST be valid JSON adhering strictly to the required schema.
 """
 
+    # Build optional environmental context block when env_params data is available
+    env_context_block = ""
+    if env_params:
+        env_context_block = f"""
+
+ENVIRONMENTAL CONTEXT (FortyGuard /v1/env_params — use for richer, more specific recommendations):
+- Heat Index: {env_params.get('heat_index_celsius')}°C
+- Apparent Temperature (Feels Like): {env_params.get('apparent_temperature_celsius')}°C
+- Relative Humidity: {env_params.get('relative_humidity_percent')}%
+- Wet-Bulb Temperature: {env_params.get('wet_bulb_temperature_celsius')}°C
+- Air Quality Index: {env_params.get('air_quality_index')} (0=Good, 100+=Unhealthy)
+- Precipitation: {env_params.get('precipitation_mm')} mm
+- Solar GHI (Clear-Sky): {env_params.get('solar_ghi')} W/m²
+IMPORTANT: Use this environmental context to ENRICH your action specificity (e.g., reference the exact humidity or heat index). Do NOT use it to override, modify, or recalculate the Authoritative Risk Level or Score."""
+
     prompt = f"""
 TARGET ANALYSIS CONTEXT:
 - Date: {date}
@@ -40,7 +55,7 @@ TARGET ANALYSIS CONTEXT:
 - Maximum Temperature: {risk.get('maximum_temperature')}°C
 - Mean Temperature: {risk.get('mean_temperature')}°C
 - Authoritative Risk Level: {risk.get('level')}
-- Authoritative Risk Score: {risk.get('score')}/100
+- Authoritative Risk Score: {risk.get('score')}/100{env_context_block}
 
 TARGET POPULATION PRIORITY GROUPS:
 {json.dumps(priority_groups, indent=2)}
@@ -78,11 +93,15 @@ Return ONLY the raw JSON object. Do not include markdown code block formatting.
     return response.text
 
 
-def generate_agentic_plan(temperature_stats, risk, priority_groups, date, time, guidelines):
+def generate_agentic_plan(temperature_stats, risk, priority_groups, date, time, guidelines, env_params=None):
     """
     Generates an agentic action plan using gemini-2.5-flash with official 12s HTTP timeout and schema validation.
     If GEMINI_API_KEY is missing, or if API call fails/times out, raises an exception
     so caller executes deterministic fallback to action_engine.py.
+
+    :param env_params: optional dict from FortyGuard /v1/env_params — used to enrich the
+                       Gemini prompt with real humidity, heat index, AQI, etc. If None,
+                       the prompt runs without environmental context (no effect on fallback).
     """
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -99,7 +118,8 @@ def generate_agentic_plan(temperature_stats, risk, priority_groups, date, time, 
         date,
         time,
         guidelines,
-        api_key
+        api_key,
+        env_params=env_params
     )
 
     # Parse and validate JSON structure

@@ -1,11 +1,12 @@
 import React from 'react';
-import { Flame, ShieldAlert, Info, Activity, Layers } from 'lucide-react';
+import { Flame, ShieldAlert, Info, Activity, Layers, LayoutGrid, Building2 } from 'lucide-react';
 
-export function Header({ activeTab, setActiveTab }) {
+export function Header({ activeTab, setActiveTab, selectedWorksiteName }) {
   const tabs = [
-    { id: 'analysis', label: 'Heat Analysis', icon: Activity },
+    { id: 'dashboard', label: 'Ops Dashboard', icon: LayoutGrid },
+    { id: 'worksite', label: 'Worksite Detail', icon: Building2 },
     { id: 'overview', label: 'Overview', icon: Layers },
-    { id: 'about', label: 'About Engine', icon: Info }
+    { id: 'about', label: 'Engine Info', icon: Info }
   ];
 
   return (
@@ -23,13 +24,13 @@ export function Header({ activeTab, setActiveTab }) {
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-1.5">
                   HeatPulse
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                    AI v1.0
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 font-mono">
+                    OPS PLATFORM v2.0
                   </span>
                 </h1>
               </div>
               <p className="text-xs text-gray-400 font-medium tracking-wide">
-                Hyperlocal Heat Intelligence & Climate Risk Decision System
+                Worksite Heat Safety Operations & Action Tracking Platform
               </p>
             </div>
           </div>
@@ -37,7 +38,7 @@ export function Header({ activeTab, setActiveTab }) {
           {/* Mobile status indicator */}
           <div className="md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            <span className="font-mono">Engine Online</span>
+            <span className="font-mono">Engine Connected</span>
           </div>
         </div>
 
@@ -69,9 +70,9 @@ export function Header({ activeTab, setActiveTab }) {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
           </span>
-          <span className="text-gray-300 font-medium">FortyGuard Engine</span>
+          <span className="text-gray-300 font-medium">FortyGuard & Gemini</span>
           <span className="text-emerald-400 font-mono text-[11px] font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-            CONNECTED
+            ONLINE
           </span>
         </div>
 
@@ -79,3 +80,4 @@ export function Header({ activeTab, setActiveTab }) {
     </header>
   );
 }
+

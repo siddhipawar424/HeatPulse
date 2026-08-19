@@ -1,152 +1,234 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
-import { LocationSelector } from './components/LocationSelector';
-import { DateTimeSelector } from './components/DateTimeSelector';
-import { MapPanel } from './components/MapPanel';
-import { HeatRiskCard } from './components/HeatRiskCard';
-import { PriorityGroups } from './components/PriorityGroups';
-import { RecommendedActions } from './components/RecommendedActions';
-import { LoadingIndicator } from './components/LoadingIndicator';
-import { EmptyState } from './components/EmptyState';
-import { ErrorState } from './components/ErrorState';
+import { OperationsDashboard } from './components/OperationsDashboard';
+import { WorksiteDetail } from './components/WorksiteDetail';
+import { CreateWorksiteModal } from './components/CreateWorksiteModal';
 import { OverviewSection } from './components/OverviewSection';
 import { AboutSection } from './components/AboutSection';
-import { DEMO_AOIS } from './data/demoAOIs';
+import { DEFAULT_WORKSITES } from './data/worksites';
 import { analyzeHeatRisk } from './services/api';
-import { Flame, MapPin, AlertCircle } from 'lucide-react';
+import { 
+  normalizeOperationalActions, 
+  loadStoredActionStates, 
+  saveStoredActionStates, 
+  getActionSummaryStats 
+} from './services/actionStore';
+import { Flame } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('analysis');
-  const [selectedAOI, setSelectedAOI] = useState(DEMO_AOIS[0]);
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'worksite' | 'overview' | 'about'
+  const [worksites, setWorksites] = useState(() => {
+    try {
+      const saved = localStorage.getItem('heatpulse_worksites_v1');
+      return saved ? JSON.parse(saved) : DEFAULT_WORKSITES;
+    } catch {
+      return DEFAULT_WORKSITES;
+    }
+  });
+
+  const [selectedWorksiteId, setSelectedWorksiteId] = useState(DEFAULT_WORKSITES[0].id);
   const [date, setDate] = useState('2025-07-15');
   const [time, setTime] = useState('14:00');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [analysisResult, setAnalysisResult] = useState(null);
+  const [analyzedAt, setAnalyzedAt] = useState(null);
 
-  // Trigger analysis call to backend /api/analyze
+  // Operational action tracking states per worksite
+  const [operationalActions, setOperationalActions] = useState([]);
+  const [actionSummaries, setActionSummaries] = useState({});
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Active worksite object
+  const currentWorksite = worksites.find(w => w.id === selectedWorksiteId) || worksites[0];
+
+  // Save worksites list to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem('heatpulse_worksites_v1', JSON.stringify(worksites));
+    } catch (e) {
+      console.warn('Failed to save worksites list to localStorage', e);
+    }
+  }, [worksites]);
+
+  // Update action summaries whenever worksites or operational actions change
+  useEffect(() => {
+    const newSummaries = {};
+    worksites.forEach((site) => {
+      const rawActions = site.analysisResult?.actions || [];
+      const ops = normalizeOperationalActions(rawActions, site.id);
+      newSummaries[site.id] = getActionSummaryStats(ops);
+    });
+    setActionSummaries(newSummaries);
+  }, [worksites, operationalActions]);
+
+  // Sync operational actions whenever selected worksite or analysis result updates
+  useEffect(() => {
+    if (currentWorksite && currentWorksite.analysisResult?.actions) {
+      const ops = normalizeOperationalActions(currentWorksite.analysisResult.actions, currentWorksite.id);
+      setOperationalActions(ops);
+    } else {
+      setOperationalActions([]);
+    }
+  }, [selectedWorksiteId, currentWorksite?.analysisResult]);
+
+  // Trigger analysis call to backend /api/analyze for target worksite
   const handleAnalyze = async () => {
+    if (!currentWorksite) return;
     setIsLoading(true);
     setError(null);
-
     try {
-      const data = await analyzeHeatRisk(selectedAOI.polygon, date, time);
-      setAnalysisResult(data);
+      await analyzeWorksite(currentWorksite.id);
     } catch (err) {
-      console.error('HeatPulse Analysis Error:', err);
-      setError(err.message || 'Unable to analyze heat risk for this location');
-      setAnalysisResult(null);
+      console.error('HeatPulse Worksite Analysis Error:', err);
+      setError(err.message || 'Unable to analyze heat risk for this worksite');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Shared per-worksite analyze function (used by single-site and batch)
+  const analyzeWorksite = async (worksiteId) => {
+    const target = worksites.find(w => w.id === worksiteId);
+    if (!target) return;
+
+    const timestamp = new Date().toISOString();
+
+    const data = await analyzeHeatRisk(target.polygon, date, time);
+
+    // Store analyzed time string alongside result so cards can show it
+    setWorksites((prevWorksites) =>
+      prevWorksites.map((w) =>
+        w.id === worksiteId
+          ? { ...w, analysisResult: data, lastAnalyzedAt: timestamp, lastAnalyzedTime: time }
+          : w
+      )
+    );
+
+    if (worksiteId === currentWorksite?.id) {
+      setAnalyzedAt(timestamp);
+      const opsActions = normalizeOperationalActions(data.actions, worksiteId);
+      setOperationalActions(opsActions);
+    }
+
+    return data;
+  };
+
+  // Handle Action Status State Mutation (PENDING -> ACKNOWLEDGED -> COMPLETED / EXCEPTION)
+  const handleUpdateActionStatus = (actionId, newStatus, extraData = {}) => {
+    if (!currentWorksite) return;
+
+    // Load existing stored states from localStorage
+    const currentStates = loadStoredActionStates(currentWorksite.id);
+
+    const timestamp = new Date().toISOString();
+    const existing = currentStates[actionId] || {};
+
+    const updatedActionState = {
+      ...existing,
+      status: newStatus,
+      acknowledgedAt: newStatus === 'ACKNOWLEDGED' ? timestamp : existing.acknowledgedAt,
+      completedAt: newStatus === 'COMPLETED' ? timestamp : existing.completedAt,
+      exceptionReason: newStatus === 'EXCEPTION' ? (extraData.reason || 'Operational Exception Reported') : existing.exceptionReason,
+    };
+
+    const newStatesMap = {
+      ...currentStates,
+      [actionId]: updatedActionState,
+    };
+
+    // Save updated states map to localStorage
+    saveStoredActionStates(currentWorksite.id, newStatesMap);
+
+    // Re-normalize operational actions list to trigger React re-render
+    if (currentWorksite.analysisResult?.actions) {
+      const updatedOps = normalizeOperationalActions(currentWorksite.analysisResult.actions, currentWorksite.id);
+      setOperationalActions(updatedOps);
+    }
+  };
+
+  // Select a worksite and open its detail view
+  const handleSelectWorksite = (worksiteId) => {
+    setSelectedWorksiteId(worksiteId);
+    setActiveTab('worksite');
+  };
+
+  // Handle dynamic creation of new worksite
+  const handleCreateWorksite = (newWorksiteObj) => {
+    setWorksites((prev) => [newWorksiteObj, ...prev]);
+    setSelectedWorksiteId(newWorksiteObj.id);
+    setActiveTab('worksite');
+  };
+
   return (
     <div className="min-h-screen bg-[#090d16] text-gray-100 flex flex-col font-sans selection:bg-orange-500 selection:text-white">
-      {/* Navigation Header */}
-      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Operations Navigation Header */}
+      <Header 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        selectedWorksiteName={currentWorksite?.name}
+      />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         
-        {/* TAB 1: HEAT ANALYSIS DASHBOARD */}
-        {activeTab === 'analysis' && (
-          <div className="space-y-8">
-            
-            {/* Top Analysis Configuration Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              
-              {/* Left Form Controls: Location + Date/Time */}
-              <div className="lg:col-span-5 space-y-6">
-                <LocationSelector
-                  selectedAOI={selectedAOI}
-                  onSelectAOI={setSelectedAOI}
-                />
-                <DateTimeSelector
-                  date={date}
-                  setDate={setDate}
-                  time={time}
-                  setTime={setTime}
-                  onAnalyze={handleAnalyze}
-                  isLoading={isLoading}
-                />
-              </div>
-
-              {/* Right Interactive Map Panel */}
-              <div className="lg:col-span-7 h-full">
-                <MapPanel
-                  selectedAOI={selectedAOI}
-                  analysisResult={analysisResult}
-                />
-              </div>
-            </div>
-
-            {/* Results Experience Area */}
-            <div className="pt-4 border-t border-gray-800/80 space-y-8">
-              
-              {/* State 1: Loading */}
-              {isLoading && <LoadingIndicator />}
-
-              {/* State 2: Error */}
-              {!isLoading && error && (
-                <ErrorState errorMessage={error} onRetry={handleAnalyze} />
-              )}
-
-              {/* State 3: Successful Results View */}
-              {!isLoading && !error && analysisResult && (
-                <div className="space-y-8 animate-fadeIn">
-                  
-                  {/* Heat Risk Metric Card */}
-                  <HeatRiskCard
-                    risk={analysisResult.risk}
-                    temperatureStats={analysisResult.temperature_stats}
-                  />
-
-                  {/* Vulnerable Priority Groups */}
-                  <PriorityGroups
-                    groups={analysisResult.priority_groups}
-                  />
-
-                  {/* Recommended Targeted Actions & Agentic Plan */}
-                  <RecommendedActions
-                    actions={analysisResult.actions}
-                    agentMetadata={analysisResult.agent_metadata}
-                    guidelines={analysisResult.guidelines}
-                  />
-
-                </div>
-              )}
-
-              {/* State 4: Initial Empty State */}
-              {!isLoading && !error && !analysisResult && (
-                <EmptyState onTriggerDemo={handleAnalyze} />
-              )}
-
-            </div>
-
-          </div>
+        {/* TAB 1: OPERATIONS DASHBOARD */}
+        {activeTab === 'dashboard' && (
+          <OperationsDashboard
+            worksites={worksites}
+            actionSummaries={actionSummaries}
+            onSelectWorksite={handleSelectWorksite}
+            onOpenCreateModal={() => setIsCreateModalOpen(true)}
+            onAnalyzeWorksite={analyzeWorksite}
+          />
         )}
 
-        {/* TAB 2: OVERVIEW */}
+        {/* TAB 2: WORKSITE OPERATIONAL DETAIL VIEW */}
+        {activeTab === 'worksite' && (
+          <WorksiteDetail
+            worksite={currentWorksite}
+            date={date}
+            setDate={setDate}
+            time={time}
+            setTime={setTime}
+            onAnalyze={handleAnalyze}
+            isLoading={isLoading}
+            error={error}
+            analysisResult={currentWorksite?.analysisResult}
+            analyzedAt={analyzedAt || currentWorksite?.lastAnalyzedAt}
+            operationalActions={operationalActions}
+            onUpdateActionStatus={handleUpdateActionStatus}
+            onBackToDashboard={() => setActiveTab('dashboard')}
+          />
+        )}
+
+        {/* TAB 3: OVERVIEW */}
         {activeTab === 'overview' && (
-          <OverviewSection onStartAnalysis={() => setActiveTab('analysis')} />
+          <OverviewSection onStartAnalysis={() => setActiveTab('dashboard')} />
         )}
 
-        {/* TAB 3: ABOUT ENGINE */}
+        {/* TAB 4: ABOUT ENGINE */}
         {activeTab === 'about' && (
           <AboutSection />
         )}
 
       </main>
 
+      {/* Create Worksite Modal */}
+      <CreateWorksiteModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreateWorksite={handleCreateWorksite}
+      />
+
       {/* Footer */}
       <footer className="bg-gray-950 border-t border-gray-800/80 py-6 px-4 text-center text-xs text-gray-500 font-mono space-y-1">
         <div className="flex items-center justify-center gap-2">
           <Flame className="w-4 h-4 text-orange-500" />
-          <span className="text-gray-300 font-bold">HeatPulse</span> — Hyperlocal Heat Intelligence System
+          <span className="text-gray-300 font-bold">HeatPulse</span> — Worksite Heat Safety Operations Platform
         </div>
-        <p>Built for FortyGuard AI Data Engine Integration • Frontend React + Vite</p>
+        <p>Powered by FortyGuard AI Data Engine & Gemini Agentic Planner • React + Vite</p>
       </footer>
     </div>
   );
