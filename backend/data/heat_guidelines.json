@@ -1,0 +1,52 @@
+[
+  {
+    "id": "osha_work_rest_ratio",
+    "organization": "OSHA",
+    "title": "OSHA Work/Rest Schedule Guidelines under High Thermal Stress",
+    "reference": "OSHA Technical Manual (OTM) Section III: Chapter 4 - Heat Stress",
+    "source_url": "https://www.osha.gov/otm/section-3-chapter-4",
+    "applicable_risk_levels": ["HIGH", "CRITICAL", "VERY_HIGH"],
+    "applicable_groups": ["Outdoor workers"],
+    "guideline_text": "When temperatures reach or exceed 38°C (100°F) or WBGT equivalent, employers must implement mandatory rest regimens. For heavy physical labor in HIGH risk conditions, enforce a 50% work / 50% rest ratio per hour in shaded/cooled areas. Under CRITICAL conditions (>=40°C), enforce a 25% work / 75% rest ratio per hour."
+  },
+  {
+    "id": "osha_hydration_protocol",
+    "organization": "OSHA",
+    "title": "OSHA Hydration & Fluid Replacement Protocol",
+    "reference": "OSHA Heat Illness Prevention Campaign Standards",
+    "source_url": "https://www.osha.gov/heat-exposure/water-rest-shade",
+    "applicable_risk_levels": ["MODERATE", "HIGH", "CRITICAL", "VERY_HIGH"],
+    "applicable_groups": ["Outdoor workers", "Outdoor exercisers"],
+    "guideline_text": "Provide cool (10–15°C / 50–60°F) potable water. Encourage workers to drink 1 cup (8 oz) every 15–20 minutes, regardless of thirst. Do not exceed 48 oz (1.5 quarts) per hour to avoid hyponatremia. Electrolyte replacement beverages should be supplied for strenuous shifts exceeding 2 hours."
+  },
+  {
+    "id": "who_elderly_heat_care",
+    "organization": "WHO",
+    "title": "WHO Heatwaves and Health: Guidance for Vulnerable Senior Citizens",
+    "reference": "WHO/WMO Heatwaves and Health Guidance Document",
+    "source_url": "https://www.who.int/news-room/fact-sheets/detail/climate-change-heat-and-health",
+    "applicable_risk_levels": ["MODERATE", "HIGH", "CRITICAL", "VERY_HIGH"],
+    "applicable_groups": ["Elderly people"],
+    "guideline_text": "Elderly individuals have reduced thermoregulatory capacity and altered thirst perception. Maintain indoor environmental temperatures below 32°C during day and 24°C during night. Caregivers must conduct minimum bi-daily wellness checks, encourage fluid intake before thirst onset, and avoid outdoors during peak solar intensity (11:00-16:00)."
+  },
+  {
+    "id": "niosh_children_heat_limits",
+    "organization": "NIOSH",
+    "title": "NIOSH/CDC Extreme Heat Protection for Pediatric & Youth Activity",
+    "reference": "CDC Extreme Heat & Children Safety Advisory",
+    "source_url": "https://www.cdc.gov/disasters/extremeheat/children.html",
+    "applicable_risk_levels": ["MODERATE", "HIGH", "CRITICAL", "VERY_HIGH"],
+    "applicable_groups": ["Children"],
+    "guideline_text": "Children produce more metabolic heat per unit mass and sweat less efficiently than adults. When thermal risk is HIGH or CRITICAL, cancel strenuous outdoor athletic activities between 11:00 and 17:00. Ensure shade access every 20 minutes and enforce mandatory 150-250 ml liquid ingestion every 20 minutes of active play."
+  },
+  {
+    "id": "niosh_acclimatization_protocol",
+    "organization": "NIOSH",
+    "title": "NIOSH Heat Acclimatization and Workload Management",
+    "reference": "NIOSH Criteria for a Recommended Standard: Occupational Exposure to Heat",
+    "source_url": "https://www.cdc.gov/niosh/docs/2016-106/",
+    "applicable_risk_levels": ["HIGH", "CRITICAL", "VERY_HIGH"],
+    "applicable_groups": ["Outdoor workers", "Outdoor exercisers"],
+    "guideline_text": "For new or unacclimatized workers, implement a 5-day progressive workload schedule (20% full workload on day 1, increasing 20% per day). For acclimatized workers returning from absence, start at 50% workload on day 1."
+  }
+]

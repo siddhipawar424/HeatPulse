@@ -1,0 +1,103 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@layer base {
+  :root {
+    --color-bg-dark: #090d16;
+    --color-panel: #111827;
+    --color-panel-border: rgba(255, 255, 255, 0.08);
+    --color-heat-primary: #ff5722;
+    --color-heat-secondary: #ff9800;
+  }
+
+  body {
+    background-color: var(--color-bg-dark);
+    color: #f3f4f6;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom HeatPulse Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+::-webkit-scrollbar-thumb {
+  background: #1f293d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
+
+/* Heat radar animation */
+@keyframes radar-sweep {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes heat-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-radar {
+  animation: radar-sweep 3s linear infinite;
+}
+
+.animate-heat-pulse {
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+/* Custom Leaflet Dark Mode styling tweaks */
+.leaflet-container {
+  background-color: #0b0f19 !important;
+  font-family: inherit !important;
+  border-radius: 0.75rem;
+}
+
+.leaflet-control-zoom a {
+  background-color: #111827 !important;
+  color: #f3f4f6 !important;
+  border-color: #374151 !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(17, 24, 39, 0.8) !important;
+  color: #9ca3af !important;
+  font-size: 10px !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #111827 !important;
+  color: #f3f4f6 !important;
+  border: 1px solid rgba(255, 87, 34, 0.3);
+  border-radius: 0.5rem !important;
+}
+.leaflet-popup-tip {
+  background: #111827 !important;
+}
