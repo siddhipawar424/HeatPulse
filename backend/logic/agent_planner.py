@@ -95,7 +95,7 @@ Return ONLY the raw JSON object. Do not include markdown code block formatting.
 
 def generate_agentic_plan(temperature_stats, risk, priority_groups, date, time, guidelines, env_params=None):
     """
-    Generates an agentic action plan using gemini-2.5-flash with official 12s HTTP timeout and schema validation.
+    Generates an agentic action plan using gemini-2.5-flash-lite with official 12s HTTP timeout and schema validation.
     If GEMINI_API_KEY is missing, or if API call fails/times out, raises an exception
     so caller executes deterministic fallback to action_engine.py.
 
