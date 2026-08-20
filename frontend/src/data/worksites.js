@@ -8,9 +8,9 @@
 export const DEFAULT_WORKSITES = [
   {
     id: 'worksite_phoenix_sec_a',
-    name: 'Phoenix Urban Sector A Construction',
-    location: 'Central Avenue Corridor, Phoenix, AZ',
-    description: 'High-density urban infrastructure & roadwork construction site',
+    name: 'Central Avenue Road Widening Project',
+    location: 'Central Ave & McDowell Rd, Phoenix, AZ',
+    description: 'Urban road widening and infrastructure improvement project along Central Avenue corridor',
     center: [33.45, -112.09],
     zoom: 13,
     workforce_count: 62,
@@ -26,7 +26,7 @@ export const DEFAULT_WORKSITES = [
       features: [
         {
           type: "Feature",
-          properties: { name: "Phoenix Urban Sector A Construction" },
+          properties: { name: "Central Avenue Road Widening Project" },
           geometry: {
             type: "Polygon",
             coordinates: [[
@@ -43,9 +43,9 @@ export const DEFAULT_WORKSITES = [
   },
   {
     id: 'worksite_metro_core',
-    name: 'Metropolitan Commercial Core Hub',
-    location: 'Financial District Plaza, Phoenix, AZ',
-    description: 'Commercial high-rise exterior facade maintenance & HVAC servicing zone',
+    name: 'Downtown Phoenix Civic Plaza Maintenance Zone',
+    location: '1st St & Washington St, Phoenix, AZ',
+    description: 'Exterior facade maintenance and HVAC servicing zone at downtown civic plaza',
     center: [33.47, -112.07],
     zoom: 13,
     workforce_count: 145,
@@ -61,7 +61,7 @@ export const DEFAULT_WORKSITES = [
       features: [
         {
           type: "Feature",
-          properties: { name: "Metropolitan Commercial Core Hub" },
+          properties: { name: "Downtown Phoenix Civic Plaza Maintenance Zone" },
           geometry: {
             type: "Polygon",
             coordinates: [[
@@ -78,9 +78,9 @@ export const DEFAULT_WORKSITES = [
   },
   {
     id: 'worksite_suburban_logistics',
-    name: 'West Valley Freight & Logistics Yard',
-    location: 'Suburban Industrial Corridor, Phoenix, AZ',
-    description: 'Open-air freight sorting yard, asphalt loading bays & staging zone',
+    name: 'West Phoenix Distribution & Freight Yard',
+    location: '91st Ave Industrial Corridor, Phoenix, AZ',
+    description: 'Open-air freight sorting and distribution yard with asphalt loading bays and staging areas',
     center: [33.43, -112.12],
     zoom: 13,
     workforce_count: 38,
@@ -96,7 +96,7 @@ export const DEFAULT_WORKSITES = [
       features: [
         {
           type: "Feature",
-          properties: { name: "West Valley Freight & Logistics Yard" },
+          properties: { name: "West Phoenix Distribution & Freight Yard" },
           geometry: {
             type: "Polygon",
             coordinates: [[
