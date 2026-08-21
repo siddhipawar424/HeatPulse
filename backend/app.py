@@ -10,8 +10,10 @@ from logic.priority_engine import calculate_priority
 from logic.action_engine import generate_actions
 from logic.guideline_retriever import retrieve_relevant_guidelines
 from logic.agent_planner import generate_agentic_plan
+from logic.copilot_engine import generate_copilot_response
 
 app = Flask(__name__)
+
 
 
 def _compute_polygon_centroid(polygon):
@@ -146,6 +148,24 @@ def analyze():
         }), 500
 
 
+@app.route("/api/copilot/query", methods=["POST"])
+def copilot_query():
+    try:
+        data = request.get_json() or {}
+        fleet_state = data.get("fleet_state", [])
+        query = data.get("query")
+
+        response_data = generate_copilot_response(fleet_state, user_query=query)
+        return jsonify(response_data)
+
+    except Exception as e:
+        print("[ERROR] Copilot Endpoint Failure:", repr(e))
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "copilot_executed": False
+        }), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True)
-

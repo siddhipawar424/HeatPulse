@@ -5,6 +5,8 @@ import {
   RefreshCw, Loader2, CheckCheck, XCircle
 } from 'lucide-react';
 import { WorksiteCard } from './WorksiteCard';
+import { CopilotPanel } from './CopilotPanel';
+
 
 export function OperationsDashboard({
   worksites,
@@ -218,7 +220,14 @@ export function OperationsDashboard({
         </div>
       </div>
 
+      {/* AI Heat Safety Operations Copilot Agent Panel */}
+      <CopilotPanel
+        worksites={worksites}
+        onSelectWorksite={onSelectWorksite}
+      />
+
       {/* Filter & Search Bar */}
+
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-900/90 border border-gray-800 rounded-xl p-4 shadow-md">
         
         {/* Search Input */}

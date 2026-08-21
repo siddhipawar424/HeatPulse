@@ -37,3 +37,29 @@ export async function analyzeHeatRisk(polygon, date, time) {
     throw new Error(error.message || 'Unable to connect to HeatPulse analysis service');
   }
 }
+
+/**
+ * Queries the AI Heat Safety Operations Copilot agent with fleet state context.
+ * @param {Array} fleetState - List of worksite objects with analysis results and stored action states
+ * @param {string} query - Optional natural language query
+ * @returns {Promise<Object>} Copilot response object
+ */
+export async function querySafetyCopilot(fleetState, query = null) {
+  try {
+    const response = await apiClient.post('/copilot/query', {
+      fleet_state: fleetState,
+      query: query,
+    });
+
+    if (response.data && response.data.success) {
+      return response.data;
+    } else {
+      throw new Error(response.data?.error || 'Copilot query failed');
+    }
+  } catch (error) {
+    if (error.response && error.response.data && error.response.data.error) {
+      throw new Error(error.response.data.error);
+    }
+    throw new Error(error.message || 'Unable to communicate with HeatPulse Copilot Service');
+  }
+}
