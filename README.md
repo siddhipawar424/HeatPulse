@@ -1,6 +1,8 @@
-# HeatPulse — Heat Safety Operations Platform
+# HeatPulse - Heat Safety Operations Platform
 
-HeatPulse is a production-oriented Heat Safety Operations Platform designed to protect outdoor workforces, vulnerable groups, and site operations from extreme thermal stress. By combining FortyGuard's hyperlocal microclimate data and environmental parameters with a deterministic risk engine and Gemini-powered agentic action planner, HeatPulse transforms raw climate parameters into stateful, dispatchable safety directives.
+> **HeatPulse - an AI-powered heat safety copilot that turns hyperlocal temperature data into prioritized, actionable guidance for heat-risk operations.**
+
+HeatPulse is a production-oriented Heat Safety Operations Platform designed to protect outdoor workforces, vulnerable groups, and site operations from extreme thermal stress. By combining FortyGuard's hyperlocal microclimate data and environmental parameters with a deterministic risk engine, Gemini-powered agentic action planner, and strict post-Gemini safety validation layer, HeatPulse transforms raw climate parameters into stateful, dispatchable safety directives.
 
 ---
 
@@ -9,12 +11,12 @@ HeatPulse is a production-oriented Heat Safety Operations Platform designed to p
 During extreme heat events, generic city-wide meteorological forecasts fail to capture local microclimate extremes. HeatPulse solves this problem by retrieving hyperlocal thermal analytics (surface temperatures and ambient metrics) for specific Area of Interest (AOI) polygons.
 
 The platform:
-* Ingests worksite boundaries (polygons) and retrieves high-resolution spatial temperature distributions.
-* Enriches spatial heat data with real-time environmental context (Wet-Bulb temperature, apparent temperature, humidity, AQI, solar GHI).
-* Calculates safety risks deterministically to enforce safety guardrails.
-* Uses generative AI to synthesize personalized safety guidelines (OSHA, WHO, NIOSH) based on worksite metadata.
-* Dispatches and tracks safety actions statefully, giving supervisors operational control and audit logs.
-* Provides an AI Heat Safety Operations Copilot agent to analyze fleet telemetry, track unresolved directives, and respond to natural-language safety queries.
+* **Ingests worksite boundaries (polygons)** and retrieves high-resolution spatial temperature distributions.
+* **Enriches spatial heat data** with real-time environmental context (Wet-Bulb temperature, apparent temperature, humidity, AQI, solar GHI).
+* **Calculates safety risks deterministically** via a rules-based safety engine to enforce strict safety guardrails.
+* **Uses generative AI** to synthesize personalized safety guidelines (OSHA, WHO, NIOSH) based on worksite metadata.
+* **Dispatches and statefully tracks safety actions**, giving supervisors operational control, exception logging, and persistent audit records.
+* **Provides an AI Heat Safety Operations Copilot agent** to analyze fleet telemetry, track unresolved directives, and respond to natural-language safety queries.
 
 ---
 
@@ -34,30 +36,36 @@ The HeatPulse pipeline processes data in a clear, sequential chain:
 
 ```
 [ Worksite / AOI Polygon ]
-           │
-           ▼
-[ FortyGuard Heatmap ] ──► Retrieves spatial maximum and mean temperature stats
-           │
-           ▼
-[ Environmental Params ] ──► Retrieves real-time humidity, Wet-Bulb, AQI, & solar GHI
-           │
-           ▼
-[ Deterministic Risk Engine ] ──► Computes authoritative Risk Score & Risk Level
-           │
-           ▼
-[ Priority Groups ] ──► Identifies vulnerable roles (Outdoor Workers, Heavy Labor)
-           │
-           ▼
-[ Safety Guidelines ] ──► Retrieves regulatory baselines (OSHA, WHO, NIOSH)
-           │
-           ▼
-[ Gemini Action Planner & Copilot Agent ] ──► Generates reasoning, target guidance, copilot verdicts, & custom directives
-           │
-           ▼
-[ Action Dispatch Center & Operations Dashboard ] ──► Manages tracking states (Pending, Acknowledged, Complete, Exception) & Fleet Copilot
-           │
-           ▼
-[ Action History Log ] ──► Persists action events with timestamped audit records
+           |
+           v
+[ FortyGuard Heatmap ] -> Retrieves spatial maximum and mean temperature stats
+           |
+           v
+[ Environmental Params ] -> Retrieves real-time humidity, Wet-Bulb, AQI, & solar GHI
+           |
+           v
+[ Deterministic Risk Engine ] -> Computes authoritative Risk Score & Risk Level
+           |
+           v
+[ Priority Groups ] -> Identifies vulnerable roles (Outdoor Workers, Heavy Labor)
+           |
+           v
+[ Safety Guidelines ] -> Retrieves regulatory baselines (OSHA, WHO, NIOSH)
+           |
+           v
+[ Gemini Action Planner ] -> Generates reasoning, target guidance, & custom directives
+           |
+           v
+[ Post-Gemini Safety Validation ] -> Validates structure, priority, safety rules, & citations
+           |
+           +--> PASSED: Dispatches customized AI Action Plan
+           +--> FAILED: Falls back to deterministic guidelines
+           |
+           v
+[ Action Dispatch Center ] -> Manages tracking states (Pending, Acknowledged, Complete, Exception)
+           |
+           v
+[ Persistent Audit Trail ] -> Stores state changes with timestamped records in browser localStorage
 ```
 
 ### Stage Responsibilities
@@ -67,24 +75,47 @@ The HeatPulse pipeline processes data in a clear, sequential chain:
 4. **Deterministic Risk Engine:** Calculates the authoritative risk score (0-100) and risk level (LOW to CRITICAL) based on hardcoded meteorological thresholds.
 5. **Priority Groups:** Dynamically associates risk severity to roles present at the worksite.
 6. **Guidelines:** Fetches relevant regulatory texts corresponding to the calculated risk level.
-7. **Gemini Agentic Action Planner & Copilot:** Leverages Gemini to synthesize guidelines and environmental parameters into readable action plans and fleet-wide copilot recommendations.
-8. **Action Dispatch Center & History:** Handles user interaction, status updates, and history log rendering.
+7. **Gemini Agentic Action Planner:** Leverages Gemini to synthesize guidelines and environmental parameters into structured JSON action plans.
+8. **Post-Gemini Safety Validation:** Deterministically audits Gemini outputs before they reach the operations UI.
+9. **Action Dispatch Center & Timeline:** Handles supervisor interaction, status updates, and persistent audit logs.
 
 ---
 
-## 4. Safety-Critical Architecture
+## 4. Safety Architecture
 
-HeatPulse separates **Risk Determination** from **Action Planning & Fleet Reasoning** to ensure reliability in safety-critical environments:
+HeatPulse separates **Risk Determination** from **Action Planning & Fleet Reasoning** to ensure absolute reliability in safety-critical environments:
 
-* **Authoritative Risk:** The deterministic safety engine (`risk_engine.py`) owns the risk score and risk level. The Gemini agent and Copilot are strictly prohibited from altering, recalculating, downgrading, or overriding numeric risk scores/levels.
-* **Backend-Validated Context:** The Copilot validates client-provided worksite state against backend calculation logic server-side.
-* **Contextual Enrichment:** Gemini is used strictly to generate reasoning summaries, time-window guidance, grounded copilot answers, and safety recommendation synthesis.
-* **System Fail-Safe:** If the Gemini API key is missing, rate-limited, or fails, the backend triggers deterministic fallbacks (`action_engine.py` for single-site plans, `copilot_engine.py` fleet aggregator for copilot queries).
-* **Validation:** Standalone backend verification tests confirm that risk scores remain identical (e.g. 80 / HIGH) before and after Gemini execution.
+* **Authoritative Containment:** The deterministic safety engine (`risk_engine.py`) owns the risk score and risk level. The Gemini agent and Copilot are strictly prohibited from altering, recalculating, downgrading, or overriding numeric risk scores/levels.
+* **Safety Validation Layer (`agent_planner.py:validate_agent_output`)**: Every response generated by Gemini is run through a deterministic backend validation block prior to UI dispatch. The validator rejects any plan that violates the following safety properties:
+  * **Risk Immutability:** Rejects responses attempting to inject, redefine, or override the risk score or risk level.
+  * **Priority Non-Downgrade:** Rejects responses that downgrade priority levels computed by the backend. Enforces rank order: `CRITICAL` > `VERY_HIGH` > `HIGH` > `MODERATE`/`LOW`.
+  * **Action Content Safety:** Scans directives and rejects any plan containing instructions to ignore alerts or compromise rest/hydration (e.g. "ignore heat alert", "cancel rest breaks", "skip hydration", "avoid water").
+  * **Citation Verification:** Enforces that cited regulatory guidelines belong to standard bodies (`OSHA`, `WHO`, `NIOSH`, `CDC`) and match retrieved guideline details.
+  * **Structure Checks:** Ensures all required fields (`reasoning_summary`, `time_window_guidance`, `guideline_citations`, `actions`) are present and valid.
+* **Deterministic Fallback:** If the Gemini API key is missing, API calls fail, or the response fails any safety validator check, the system raises a validation exception and falls back to deterministic safety guidelines (`action_engine.py`) to protect workforces.
 
 ---
 
-## 5. FortyGuard Integration
+## 5. Persistent Operational Audit Trail
+
+To meet B2B compliance needs, HeatPulse includes a stateful operational audit trail companion service (`auditStore.js`).
+
+* **Operational Events Tracked:**
+  * `ANALYSIS`: Recorded automatically when a new worksite analysis is executed.
+  * `RECOMMENDATION`: Logged for every directive dispatched to the worksite.
+  * `ACKNOWLEDGED`: Appended when a supervisor acknowledges a directive.
+  * `COMPLETED`: Logged when a directive is marked as resolved.
+  * `EXCEPTION`: Logged when a supervisor reports an operational exception (contains a custom supervisor-supplied reason).
+* **Actors / Sources Tracked:**
+  * `SYSTEM`: For analysis triggers.
+  * `GEMINI`: For AI-synthesized directives.
+  * `DETERMINISTIC_FALLBACK`: When the planner fails back to rule-based actions.
+  * `SUPERVISOR`: For all manual lifecycle updates.
+* **Browser Persistence:** Events are stored in `localStorage` (`heatpulse_audit_v1_<worksiteId>`) on the frontend. Hydration happens automatically during application startup and worksite selection, ensuring the log survives browser refreshes. No backend endpoints or API contracts were changed to support this service.
+
+---
+
+## 6. FortyGuard Integration
 
 HeatPulse integrates directly with FortyGuard's HTTP endpoints:
 
@@ -94,67 +125,60 @@ HeatPulse integrates directly with FortyGuard's HTTP endpoints:
 
 ---
 
-## 6. Agentic AI & Heat Safety Operations Copilot
+## 7. AI Heat Safety Operations Copilot
 
 ### Single-Site Action Planner
-When Gemini is available, `generate_agentic_plan()` returns structured action directives, a 2-sentence reasoning summary, target window guidance, and guideline citations.
+When Gemini is available and passes validation, `generate_agentic_plan()` returns structured action directives, reasoning summaries, target window guidance, and guideline citations.
 
 ### Heat Safety Operations Copilot
 The platform includes an AI-powered B2B Operations Copilot assistant (`copilot_engine.py`) that observes multi-worksite telemetry, FortyGuard environmental parameters, deterministic risk baselines, exposed workforce counts, shift operating hours, and live action tracking resolution statuses.
 
 #### Key Copilot Capabilities:
 * **Grounded Operational Recommendations:** Evaluates fleet telemetry to deliver executive verdicts for safety managers.
-* **Natural-Language Safety Queries & Preset Chips:** Accepts custom natural-language prompts or preset query chips (*"Which sites need immediate attention today?"*, *"Why are specific sites high risk?"*, *"Which risks are unresolved?"*, *"Supervisor escalation guidance"*).
+* **Natural-Language Safety Queries & Preset Chips:** Accepts custom natural-language prompts or preset query chips ("Which sites need immediate attention today?", "Why are specific sites high risk?", "Which risks are unresolved?", "Supervisor escalation guidance").
 * **Critical Sites Identification:** Identifies HIGH and CRITICAL severity worksites requiring immediate supervisor attention with grounded explanations.
 * **Interventions & Guidance:** Recommends immediate prioritized interventions and target time-window advisories grounded in microclimate parameters and shift hours.
 * **Unresolved Directives Audit:** Tracks and summarizes pending directives, acknowledged items, completed tasks, and open operational exceptions.
 * **Agent Decision Trace (`agent_trace`):** Displays a 6-step operational decision trace logging the actual data ingestion, risk validation, environmental evaluation, action audit, and agent synthesis steps performed during query execution.
 
-### AI Execution & Fallback Architecture
-* **SDK:** `google-genai` (Vite / Flask integration).
-* **Model:** `gemini-2.5-flash-lite`.
-* **API Key Support:** Checked via `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
-* **Timeout & Configuration:** Configures a 12-second HTTP timeout (`types.HttpOptions(timeout=12000)`) and enforces structured output (`response_mime_type="application/json"`).
-* **Deterministic Fallback:** If Gemini is unavailable or execution fails, HeatPulse automatically falls back to a deterministic fleet aggregator that compiles operational metrics directly from backend risk baselines and guidelines, preserving 100% operational functionality.
-
----
-
-## 7. Worksite Operations
-
-The frontend converts analysis results into stateful operations:
-
-* **Multiple Worksites:** Monitors several worksites simultaneously.
-* **Analyze All Worksites:** Runs sequential, fail-safe analyses across all worksites. If a single worksite analysis fails, it is marked as such, and the process continues to the next.
-* **Analysis Hour:** Replaces traditional "Peak Heat" metrics, indicating that the risk calculation corresponds precisely to the selected time picker hour.
-* **Operational Action Tracking:** Dispatches actions through four states: `PENDING` → `ACKNOWLEDGED` → `COMPLETED` / `EXCEPTION`.
-* **Exception Reporting:** Allows supervisors to record exceptions with custom reasons.
-* **Action History & Persistence:** Persists state changes and timestamps locally via `localStorage`, which survive browser refreshes.
-
 ---
 
 ## 8. Frontend / Backend Architecture
 
-### Backend Files (`/backend`)
-* `app.py`: Sets up Flask routes, coordinates FortyGuard API calls, risk calculations, action planning, and Copilot queries.
-  * **Endpoints:**
-    * `GET /`: Health check route.
-    * `POST /api/analyze`: Accepts polygon, date, and time to run FortyGuard spatial heat & env parameters analysis.
-    * `POST /api/copilot/query`: Accepts `fleet_state` (worksite telemetry & stored action states) and an optional `query` string to execute the AI Operations Copilot agent.
-* `services/fortyguard.py`: Manages endpoints and polling logic for FortyGuard.
-* `logic/risk_engine.py`: Holds deterministic risk score calculations.
-* `logic/copilot_engine.py`: Implements the AI Heat Safety Operations Copilot agent and deterministic fleet aggregator fallback.
-* `logic/agent_planner.py`: Integrates the `google-genai` client and prompt schemas for single-site action planning.
-* `logic/action_engine.py`: Defines deterministic safety action fallbacks.
-* `logic/priority_engine.py` & `guideline_retriever.py`: Manage group priorities and guidelines lookup.
+### Directory Structure
 
-### Frontend Files (`/frontend/src`)
-* `App.jsx`: Manages reactive states, active tab, worksite collections, and batch triggers.
-* `services/api.js`: Handles API fetch wrappers (`analyzeHeatRisk`, `querySafetyCopilot`) to communicate with Flask.
-* `services/actionStore.js`: Manages `localStorage` reads, writes, and status normalization.
-* `components/OperationsDashboard.jsx`: Renders the B2B Command Dashboard, Executive Fleet KPI bar, embedded Copilot Panel, worksite grid, batch progress, and filtering.
-* `components/CopilotPanel.jsx`: Renders the AI Safety Copilot interface with preset query chips, natural language input, grounded verdicts, critical site callouts, interventions, and expandable Agent Decision Trace.
-* `components/ActionDispatchCenter.jsx`: Dispatches active actions, tab switcher, and history timeline.
-* `components/WorksiteDetail.jsx` & `WorksiteCard.jsx`: Layout components for detail panels.
+```
+backend/
+  app.py                      # Flask application endpoints
+  logic/
+    risk_engine.py            # Deterministic risk calculator (authoritative)
+    priority_engine.py        # Workforce priority assignments
+    guideline_retriever.py    # Regulatory standard fetcher
+    action_engine.py          # Rule-based safety action fallbacks
+    agent_planner.py          # Gemini Action Planner & Safety Validator
+    copilot_engine.py         # Operations Copilot & Fleet reasoning
+  services/
+    fortyguard.py             # FortyGuard API integrations
+  test_agent_fallback.py      # Standalone backend fallback test
+  test_agent_enabled.py       # Standalone safety validator & live Gemini test
+  test_copilot.py             # Standalone copilot agent verification test
+
+frontend/
+  src/
+    App.jsx                   # Core React state coordinator & localStorage sync
+    components/
+      OperationsDashboard.jsx # Fleet KPI view & CopilotPanel
+      CopilotPanel.jsx        # Copilot prompt & agent trace rendering
+      ActionDispatchCenter.jsx# Stateful action supervisor & Audit Trail timeline
+      WorksiteDetail.jsx      # Individual worksite details
+      MapPanel.jsx            # AOI visualization
+    services/
+      api.js                  # Fetch requests to Flask backend
+      actionStore.js          # Actions state localStorage companion
+      auditStore.js           # Persistent Audit Trail service
+  package.json
+  package-lock.json
+```
 
 ---
 
@@ -186,7 +210,6 @@ The frontend converts analysis results into stateful operations:
    ```env
    FORTYGUARD_API_KEY=your_fortyguard_key
    GEMINI_API_KEY=your_gemini_key
-   # Alternatively: GOOGLE_API_KEY=your_gemini_key
    ```
 5. Run the Flask development server:
    ```powershell
@@ -216,35 +239,40 @@ The frontend converts analysis results into stateful operations:
 
 ## 11. Verification / Testing
 
-The following verification scripts are included in the repository and run as standalone scripts:
+The following verification suites are available in the repository:
 
-1. **Verify Backend (Fallback):**
+### Backend Test Commands
+Run these from the virtual environment in the repository root:
+
+1. **Verify Backend Fallback:**
    ```powershell
    python backend/test_agent_fallback.py
    ```
    *Confirms that if `GEMINI_API_KEY` is missing or invalid, the system falls back gracefully to deterministic action lists.*
 
-2. **Verify Backend (Gemini Live):**
+2. **Verify Backend Gemini Live & Safety Validator:**
    ```powershell
    python backend/test_agent_enabled.py
    ```
-   *Invokes Gemini live to test the schema, verify response time, and confirm that the risk score remains unchanged before and after the Gemini call.*
+   *Runs 7 validator unit tests (verifying structure, risk overrides, priority downgrades, unsafe actions, invalid citations) and tests live Gemini integration using the `gemini-2.5-flash-lite` model.*
 
-3. **Verify Copilot Engine (Gemini & Fallback):**
+3. **Verify Copilot Engine:**
    ```powershell
    python backend/test_copilot.py
    ```
    *Verifies the Copilot response generation, decision trace (`agent_trace`), critical-site identification, directive audits, and deterministic fleet aggregator fallback behavior.*
 
----
+### Frontend Test Commands
+Run these from the `frontend/` directory:
 
-## 12. Security
+1. **Run Frontend Unit Tests:**
+   ```powershell
+   npm test
+   ```
+   *Executes 10 Vitest unit tests verifying that all event types (`ANALYSIS`, `RECOMMENDATION`, `ACKNOWLEDGED`, `COMPLETED`, `EXCEPTION`), sources (`SYSTEM`, `GEMINI`, `DETERMINISTIC_FALLBACK`, `SUPERVISOR`), and multiple persisted log entries reload cleanly.*
 
-* **Secrets Management:** Environment variables are managed strictly via `.env` (excluded from tracking in `.gitignore`). Recognized key names include `GEMINI_API_KEY`, `GOOGLE_API_KEY`, and `FORTYGUARD_API_KEY`.
-* **Authoritative Containment:** The deterministic risk engine runs entirely in memory on the backend and cannot be bypassed.
-
----
-
-## 13. Hackathon Value & Differentiator
-
-By separating **authoritative safety calculations** from **generative text synthesis and fleet copilot reasoning**, HeatPulse introduces a reliable architecture for climate safety. Organizations receive the best of both worlds: the safety guarantees of a rules-based system, and the contextual clarity of generative AI, without exposing safety-critical decisions to LLM hallucinations or API downtime.
+2. **Check Formatting & Styles:**
+   ```powershell
+   git diff --check
+   ```
+   *Confirms that no stray whitespace characters or syntax warnings are present.*
