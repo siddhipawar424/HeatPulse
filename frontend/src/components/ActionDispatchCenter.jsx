@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { 
   ShieldCheck, CheckCircle2, Clock, AlertTriangle, Sparkles, 
   BookOpen, UserCheck, Check, AlertCircle, RefreshCw, X,
-  History, ListChecks
+  History, ListChecks, ScrollText
 } from 'lucide-react';
 
 export function ActionDispatchCenter({ 
   operationalActions, 
   agentMetadata, 
   guidelines, 
-  onUpdateActionStatus 
+  onUpdateActionStatus,
+  auditLog,
+  worksiteId,
 }) {
   const [exceptionInputId, setExceptionInputId] = useState(null);
   const [exceptionReasonText, setExceptionReasonText] = useState('');
@@ -204,6 +206,22 @@ export function ActionDispatchCenter({
           <span className={`ml-0.5 text-[10px] font-mono px-1 rounded ${
             activeView === 'history' ? 'bg-orange-500/30 text-orange-300' : 'bg-gray-800 text-gray-400'
           }`}>{historyActions.length}</span>
+        </button>
+        <button
+          type="button"
+          id="tab-audit-trail"
+          onClick={() => setActiveView('audit')}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+            activeView === 'audit'
+              ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <ScrollText className="w-3.5 h-3.5" />
+          Audit Trail
+          <span className={`ml-0.5 text-[10px] font-mono px-1 rounded ${
+            activeView === 'audit' ? 'bg-orange-500/30 text-orange-300' : 'bg-gray-800 text-gray-400'
+          }`}>{(auditLog || []).length}</span>
         </button>
       </div>
 
@@ -437,6 +455,147 @@ export function ActionDispatchCenter({
             </div>
           </div>
         </>
+      )}
+
+      {/* ─── AUDIT TRAIL TAB ─── */}
+      {activeView === 'audit' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-xs font-mono text-gray-400 uppercase tracking-wider font-semibold">
+            <span>Operational Audit Trail ({(auditLog || []).length} events)</span>
+            <span className="text-[11px] normal-case tracking-normal">Persists across browser refreshes</span>
+          </div>
+
+          {(!auditLog || auditLog.length === 0) ? (
+            <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-8 text-center space-y-2">
+              <ScrollText className="w-8 h-8 text-gray-600 mx-auto" />
+              <p className="text-sm font-semibold text-gray-300">No audit events yet</p>
+              <p className="text-xs text-gray-500">
+                Run a heat-risk analysis to begin recording operational events.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-gray-800">
+              <table className="w-full text-[11px] font-mono">
+                <thead>
+                  <tr className="bg-gray-950 border-b border-gray-800 text-gray-400 uppercase tracking-wider">
+                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Timestamp</th>
+                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Worksite</th>
+                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Risk</th>
+                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Event</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Action / Directive</th>
+                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Status</th>
+                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Source</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60">
+                  {auditLog.map((evt) => {
+                    // Row color by event type
+                    const rowStyle =
+                      evt.eventType === 'COMPLETED'   ? 'bg-emerald-950/10 hover:bg-emerald-950/20' :
+                      evt.eventType === 'ACKNOWLEDGED'? 'bg-blue-950/10 hover:bg-blue-950/20'     :
+                      evt.eventType === 'EXCEPTION'   ? 'bg-rose-950/10 hover:bg-rose-950/20'       :
+                      evt.eventType === 'ANALYSIS'    ? 'bg-gray-950/60 hover:bg-gray-900/40'       :
+                      'bg-gray-950/40 hover:bg-gray-900/40';
+
+                    // Event badge color
+                    const eventBadgeStyle =
+                      evt.eventType === 'ANALYSIS'       ? 'text-gray-300 bg-gray-800/60 border-gray-700'          :
+                      evt.eventType === 'RECOMMENDATION' ? 'text-amber-300 bg-amber-500/10 border-amber-500/30'     :
+                      evt.eventType === 'DISPATCH'       ? 'text-orange-300 bg-orange-500/10 border-orange-500/30'  :
+                      evt.eventType === 'ACKNOWLEDGED'   ? 'text-blue-300 bg-blue-500/10 border-blue-500/30'        :
+                      evt.eventType === 'COMPLETED'      ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30':
+                      'text-rose-300 bg-rose-500/10 border-rose-500/30';
+
+                    // Risk badge color
+                    const riskBadgeStyle =
+                      evt.riskLevel === 'CRITICAL'  ? 'text-purple-300 bg-purple-500/10 border-purple-500/30' :
+                      evt.riskLevel === 'VERY_HIGH' ? 'text-red-300 bg-red-500/10 border-red-500/30'         :
+                      evt.riskLevel === 'HIGH'      ? 'text-orange-300 bg-orange-500/10 border-orange-500/30':
+                      evt.riskLevel === 'MODERATE'  ? 'text-amber-300 bg-amber-500/10 border-amber-500/30'   :
+                      'text-gray-300 bg-gray-800/50 border-gray-700';
+
+                    // Source badge color
+                    const sourceBadgeStyle =
+                      evt.source === 'GEMINI'                 ? 'text-yellow-300 bg-yellow-500/10 border-yellow-500/30'    :
+                      evt.source === 'DETERMINISTIC_FALLBACK' ? 'text-cyan-300 bg-cyan-500/10 border-cyan-500/30'          :
+                      evt.source === 'SUPERVISOR'             ? 'text-blue-300 bg-blue-500/10 border-blue-500/30'          :
+                      'text-gray-300 bg-gray-800/50 border-gray-700';
+
+                    return (
+                      <tr key={evt.id} className={`transition-colors ${rowStyle}`}>
+                        {/* Timestamp */}
+                        <td className="px-3 py-2.5 text-gray-400 whitespace-nowrap">
+                          {new Date(evt.timestamp).toLocaleString([], {
+                            month: 'short', day: 'numeric',
+                            hour: '2-digit', minute: '2-digit', second: '2-digit'
+                          })}
+                        </td>
+
+                        {/* Worksite */}
+                        <td className="px-3 py-2.5 text-gray-200 whitespace-nowrap max-w-[160px] truncate" title={evt.worksiteName}>
+                          {evt.worksiteName}
+                        </td>
+
+                        {/* Risk */}
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          {evt.riskLevel ? (
+                            <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold ${riskBadgeStyle}`}>
+                              {evt.riskLevel} {evt.riskScore != null ? `(${evt.riskScore})` : ''}
+                            </span>
+                          ) : (
+                            <span className="text-gray-600">—</span>
+                          )}
+                        </td>
+
+                        {/* Event Type */}
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold ${eventBadgeStyle}`}>
+                            {evt.eventType}
+                          </span>
+                        </td>
+
+                        {/* Action / Directive */}
+                        <td className="px-3 py-2.5 text-gray-300 max-w-[220px]">
+                          {evt.directive ? (
+                            <span className="line-clamp-2 leading-relaxed" title={evt.directive}>{evt.directive}</span>
+                          ) : (
+                            <span className="text-gray-600 italic">—</span>
+                          )}
+                          {evt.exceptionReason && (
+                            <p className="text-rose-400 mt-0.5 italic text-[10px]">↳ {evt.exceptionReason}</p>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          {evt.status ? (
+                            <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold ${
+                              evt.status === 'COMPLETED'   ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30' :
+                              evt.status === 'ACKNOWLEDGED'? 'text-blue-300 bg-blue-500/10 border-blue-500/30'         :
+                              evt.status === 'EXCEPTION'   ? 'text-rose-300 bg-rose-500/10 border-rose-500/30'         :
+                              'text-amber-300 bg-amber-500/10 border-amber-500/30'
+                            }`}>
+                              {evt.status}
+                            </span>
+                          ) : (
+                            <span className="text-gray-600">—</span>
+                          )}
+                        </td>
+
+                        {/* Source */}
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold ${sourceBadgeStyle}`}>
+                            {evt.source}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ─── ACTION HISTORY TAB ─── */}

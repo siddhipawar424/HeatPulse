@@ -13,6 +13,12 @@ import {
   saveStoredActionStates, 
   getActionSummaryStats 
 } from './services/actionStore';
+import {
+  appendAuditEvent,
+  loadAuditLog,
+  AUDIT_EVENT_TYPES,
+  AUDIT_SOURCES,
+} from './services/auditStore';
 import { Flame } from 'lucide-react';
 
 export default function App() {
@@ -20,13 +26,29 @@ export default function App() {
   const [worksites, setWorksites] = useState(() => {
     try {
       const saved = localStorage.getItem('heatpulse_worksites_v1');
-      return saved ? JSON.parse(saved) : DEFAULT_WORKSITES;
-    } catch {
-      return DEFAULT_WORKSITES;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((savedSite) => {
+            const defaultMatch = DEFAULT_WORKSITES.find(d => d.id === savedSite.id);
+            return defaultMatch ? { ...defaultMatch, ...savedSite } : savedSite;
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load worksites from localStorage:', e);
     }
+    return DEFAULT_WORKSITES;
   });
 
-  const [selectedWorksiteId, setSelectedWorksiteId] = useState(DEFAULT_WORKSITES[0].id);
+  const [selectedWorksiteId, setSelectedWorksiteId] = useState(() => {
+    try {
+      const saved = localStorage.getItem('heatpulse_selected_worksite_id');
+      return saved || DEFAULT_WORKSITES[0].id;
+    } catch {
+      return DEFAULT_WORKSITES[0].id;
+    }
+  });
   const [date, setDate] = useState('2025-07-15');
   const [time, setTime] = useState('14:00');
 
@@ -40,11 +62,32 @@ export default function App() {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // Audit log for the currently selected worksite (reactive — updated after each write)
+  const [auditLog, setAuditLog] = useState(() => loadAuditLog(selectedWorksiteId));
+
   // Active worksite object
   const currentWorksite = worksites.find(w => w.id === selectedWorksiteId) || worksites[0];
 
-  // Save worksites list to localStorage on change
+  // Sync selectedWorksiteId in localStorage and hydrate auditLog state on mount or change
   useEffect(() => {
+    if (selectedWorksiteId) {
+      try {
+        localStorage.setItem('heatpulse_selected_worksite_id', selectedWorksiteId);
+      } catch (e) {
+        console.warn('Failed to save selectedWorksiteId to localStorage', e);
+      }
+      setAuditLog(loadAuditLog(selectedWorksiteId));
+    }
+  }, [selectedWorksiteId]);
+
+  const isInitialMount = React.useRef(true);
+
+  // Save worksites list to localStorage on change (skips redundant write on initial mount)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     try {
       localStorage.setItem('heatpulse_worksites_v1', JSON.stringify(worksites));
     } catch (e) {
@@ -106,10 +149,53 @@ export default function App() {
       )
     );
 
+    // --- Audit Trail: record ANALYSIS event ---
+    const riskScore = data.risk?.score ?? null;
+    const riskLevel = data.risk?.level ?? null;
+    const auditSource = data.agent_metadata?.agent_executed
+      ? AUDIT_SOURCES.GEMINI
+      : AUDIT_SOURCES.DETERMINISTIC_FALLBACK;
+
+    appendAuditEvent(worksiteId, {
+      worksiteName:    target.name,
+      riskScore,
+      riskLevel,
+      eventType:       AUDIT_EVENT_TYPES.ANALYSIS,
+      source:          AUDIT_SOURCES.SYSTEM,
+      directive:       null,
+      actionId:        null,
+      status:          null,
+      exceptionReason: null,
+    });
+
+    // --- Audit Trail: record one RECOMMENDATION event per dispatched directive ---
+    if (Array.isArray(data.actions)) {
+      data.actions.forEach((groupItem, gIdx) => {
+        const groupName = groupItem.group || 'General Workforce';
+        const directiveList = groupItem.actions || [];
+        directiveList.forEach((directiveText, dIdx) => {
+          const actionId = `act_${groupName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${dIdx}`;
+          appendAuditEvent(worksiteId, {
+            worksiteName:    target.name,
+            riskScore,
+            riskLevel,
+            eventType:       AUDIT_EVENT_TYPES.RECOMMENDATION,
+            source:          auditSource,
+            actionId,
+            directive:       directiveText,
+            status:          'PENDING',
+            exceptionReason: null,
+          });
+        });
+      });
+    }
+
     if (worksiteId === currentWorksite?.id) {
       setAnalyzedAt(timestamp);
       const opsActions = normalizeOperationalActions(data.actions, worksiteId);
       setOperationalActions(opsActions);
+      // Refresh audit log for current worksite so UI re-renders
+      setAuditLog(loadAuditLog(worksiteId));
     }
 
     return data;
@@ -141,17 +227,48 @@ export default function App() {
     // Save updated states map to localStorage
     saveStoredActionStates(currentWorksite.id, newStatesMap);
 
+    // --- Audit Trail: record supervisor lifecycle event ---
+    const auditEventType =
+      newStatus === 'ACKNOWLEDGED' ? AUDIT_EVENT_TYPES.ACKNOWLEDGED :
+      newStatus === 'COMPLETED'    ? AUDIT_EVENT_TYPES.COMPLETED    :
+      newStatus === 'EXCEPTION'    ? AUDIT_EVENT_TYPES.EXCEPTION    :
+      null;
+
+    if (auditEventType) {
+      // Find the directive text for this action
+      const matchingAction = operationalActions.find(a => a.id === actionId);
+      const risk = currentWorksite.analysisResult?.risk;
+      appendAuditEvent(currentWorksite.id, {
+        worksiteName:    currentWorksite.name,
+        riskScore:       risk?.score ?? null,
+        riskLevel:       risk?.level ?? null,
+        eventType:       auditEventType,
+        source:          AUDIT_SOURCES.SUPERVISOR,
+        actionId,
+        directive:       matchingAction?.directive || null,
+        status:          newStatus,
+        exceptionReason: newStatus === 'EXCEPTION'
+          ? (extraData.reason || 'Operational Exception Reported')
+          : null,
+      });
+    }
+
     // Re-normalize operational actions list to trigger React re-render
     if (currentWorksite.analysisResult?.actions) {
       const updatedOps = normalizeOperationalActions(currentWorksite.analysisResult.actions, currentWorksite.id);
       setOperationalActions(updatedOps);
     }
+
+    // Refresh audit log state so the Audit Trail tab re-renders immediately
+    setAuditLog(loadAuditLog(currentWorksite.id));
   };
 
   // Select a worksite and open its detail view
   const handleSelectWorksite = (worksiteId) => {
     setSelectedWorksiteId(worksiteId);
     setActiveTab('worksite');
+    // Load audit log for the newly selected worksite
+    setAuditLog(loadAuditLog(worksiteId));
   };
 
   // Handle dynamic creation of new worksite
@@ -200,6 +317,7 @@ export default function App() {
             operationalActions={operationalActions}
             onUpdateActionStatus={handleUpdateActionStatus}
             onBackToDashboard={() => setActiveTab('dashboard')}
+            auditLog={auditLog}
           />
         )}
 

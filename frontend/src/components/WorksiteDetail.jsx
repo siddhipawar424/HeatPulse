@@ -25,7 +25,8 @@ export function WorksiteDetail({
   analyzedAt,
   operationalActions,
   onUpdateActionStatus,
-  onBackToDashboard
+  onBackToDashboard,
+  auditLog,
 }) {
   if (!worksite) return null;
 
@@ -191,6 +192,8 @@ export function WorksiteDetail({
               agentMetadata={analysisResult.agent_metadata}
               guidelines={analysisResult.guidelines}
               onUpdateActionStatus={onUpdateActionStatus}
+              auditLog={auditLog}
+              worksiteId={worksite.id}
             />
 
           </div>
