@@ -17,10 +17,6 @@ from logic.guideline_retriever import retrieve_relevant_guidelines
 from logic.agent_planner import generate_agentic_plan
 from logic.copilot_engine import generate_copilot_response
 
-app = Flask(__name__)
-
-
-
 def _compute_polygon_centroid(polygon):
     """
     Computes the bounding-box centroid (average of min/max lat & lon) from a
